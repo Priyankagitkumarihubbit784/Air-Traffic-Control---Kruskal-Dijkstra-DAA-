@@ -1,0 +1,207 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+# Kruskal's MST implementation
+class Kruskal:
+    def __init__(self, vertices):
+        self.V = vertices
+        self.graph = []
+    
+    def add_edge(self, u, v, w):
+        self.graph.append([u, v, w])
+    
+    def find(self, parent, i):
+        if parent[i] != i:
+            parent[i] = self.find(parent, parent[i])
+        return parent[i]
+    
+    def union(self, parent, rank, x, y):
+        xroot = self.find(parent, x)
+        yroot = self.find(parent, y)
+        
+        if rank[xroot] < rank[yroot]:
+            parent[xroot] = yroot
+        elif rank[yroot] < rank[xroot]:
+            parent[yroot] = xroot
+        else:
+            parent[yroot] = xroot
+            rank[xroot] += 1
+    
+    def kruskal_mst(self):
+        result = []
+        i, e = 0, 0
+        self.graph = sorted(self.graph, key=lambda item: item[2])
+        
+        parent = []
+        rank = []
+        
+        for node in range(self.V):
+            parent.append(node)
+            rank.append(0)
+        
+        while e < self.V - 1 and i < len(self.graph):
+            u, v, w = self.graph[i]
+            i += 1
+            x = self.find(parent, u)
+            y = self.find(parent, v)
+            
+            if x != y:
+                e += 1
+                result.append([u, v, w])
+                self.union(parent, rank, x, y)
+        
+        return result
+
+
+# Dijkstra's shortest path implementation
+class Dijkstra:
+    def __init__(self, vertices):
+        self.V = vertices
+        self.graph = [[0 for _ in range(vertices)] for _ in range(vertices)]
+    
+    def add_edge(self, u, v, w):
+        self.graph[u][v] = w
+        self.graph[v][u] = w  # Undirected
+    
+    def min_distance(self, dist, spt_set):
+        min_val = float('inf')
+        min_index = -1
+        for v in range(self.V):
+            if dist[v] < min_val and not spt_set[v]:
+                min_val = dist[v]
+                min_index = v
+        return min_index
+    
+    def dijkstra(self, src):
+        dist = [float('inf')] * self.V
+        dist[src] = 0
+        spt_set = [False] * self.V
+        
+        for _ in range(self.V):
+            u = self.min_distance(dist, spt_set)
+            spt_set[u] = True
+            
+            for v in range(self.V):
+                if self.graph[u][v] > 0 and not spt_set[v] and dist[v] > dist[u] + self.graph[u][v]:
+                    dist[v] = dist[u] + self.graph[u][v]
+        
+        return dist
+
+
+# GUI for the project
+class AirTrafficControlApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Air Traffic Control - Kruskal & Dijkstra (DAA)")
+        self.root.geometry("600x600")
+        
+        self.vertices = 0
+        self.edges = []
+        
+        self.create_widgets()
+
+    def create_widgets(self):
+        ttk.Label(self.root, text="Number of Vertices:").pack(pady=5)
+        self.vert_entry = ttk.Entry(self.root)
+        self.vert_entry.pack(pady=5)
+        
+        ttk.Button(self.root, text="Set Vertices", command=self.set_vertices).pack(pady=5)
+        
+        ttk.Label(self.root, text="Enter Edges: (u, v, weight)").pack(pady=5)
+        self.edge_entry = ttk.Entry(self.root)
+        self.edge_entry.pack(pady=5)
+
+        ttk.Button(self.root, text="Add Edge", command=self.add_edge).pack(pady=5)
+        
+        self.edges_listbox = tk.Listbox(self.root, height=6)
+        self.edges_listbox.pack(pady=5)
+
+        ttk.Label(self.root, text="Select Source Vertex (for Dijkstra):").pack(pady=5)
+        self.src_entry = ttk.Entry(self.root)
+        self.src_entry.pack(pady=5)
+        
+        ttk.Button(self.root, text="Find MST (Kruskal)", command=self.run_kruskal).pack(pady=5)
+        ttk.Button(self.root, text="Find Shortest Paths (Dijkstra)", command=self.run_dijkstra).pack(pady=5)
+        
+        ttk.Label(self.root, text="Output:").pack(pady=10)
+        self.output_text = tk.Text(self.root, height=10, width=70)
+        self.output_text.pack()
+
+    def set_vertices(self):
+        try:
+            self.vertices = int(self.vert_entry.get())
+            if self.vertices <= 0:
+                raise ValueError
+            self.edges.clear()
+            self.edges_listbox.delete(0, tk.END)
+            self.output_text.delete(1.0, tk.END)
+            messagebox.showinfo("Success", f"Number of vertices set to {self.vertices}")
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid positive integer for vertices.")
+
+    def add_edge(self):
+        if self.vertices == 0:
+            messagebox.showwarning("Warning", "Set the number of vertices first.")
+            return
+        
+        edge_input = self.edge_entry.get()
+        try:
+            u, v, w = map(int, edge_input.split(","))
+            if u < 0 or v < 0 or u >= self.vertices or v >= self.vertices or w <= 0:
+                raise ValueError
+            self.edges.append([u, v, w])
+            self.edges_listbox.insert(tk.END, f"{u} - {v}: {w}")
+            self.edge_entry.delete(0, tk.END)
+        except Exception:
+            messagebox.showerror("Error", "Enter edges in format: u,v,weight\nVertices between 0 and V-1, weight > 0")
+
+    def run_kruskal(self):
+        if not self.edges:
+            messagebox.showwarning("Warning", "Add edges before running Kruskal's algorithm.")
+            return
+        
+        kruskal_graph = Kruskal(self.vertices)
+        for u, v, w in self.edges:
+            kruskal_graph.add_edge(u, v, w)
+        mst = kruskal_graph.kruskal_mst()
+        self.output_text.delete(1.0, tk.END)
+        self.output_text.insert(tk.END, "Minimum Spanning Tree (Kruskal's Algorithm):\n")
+        total_cost = 0
+        for u, v, w in mst:
+            self.output_text.insert(tk.END, f"Edge: {u} - {v} | Weight: {w}\n")
+            total_cost += w
+        self.output_text.insert(tk.END, f"Total Cost of MST: {total_cost}\n")
+
+    def run_dijkstra(self):
+        if not self.edges:
+            messagebox.showwarning("Warning", "Add edges before running Dijkstra's algorithm.")
+            return
+        
+        try:
+            src = int(self.src_entry.get())
+            if src < 0 or src >= self.vertices:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Enter a valid source vertex number.")
+            return
+        
+        dijkstra_graph = Dijkstra(self.vertices)
+        for u, v, w in self.edges:
+            dijkstra_graph.add_edge(u, v, w)
+        
+        dist = dijkstra_graph.dijkstra(src)
+        self.output_text.delete(1.0, tk.END)
+        self.output_text.insert(tk.END, f"Shortest paths from vertex {src} (Dijkstra’s Algorithm):\n")
+        for i in range(self.vertices):
+            distance = dist[i]
+            if distance == float('inf'):
+                self.output_text.insert(tk.END, f"Vertex {i}: Not reachable\n")
+            else:
+                self.output_text.insert(tk.END, f"Vertex {i}: Distance = {distance}\n")
+
+
+# Run the application
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AirTrafficControlApp(root)
+    root.mainloop()
